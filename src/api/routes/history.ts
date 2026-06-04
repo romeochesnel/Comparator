@@ -5,6 +5,12 @@ import { HttpError } from '../middleware/errorHandler';
 
 export const historyRouter = Router();
 
+historyRouter.get('/:trackerId/stats', (req, res, next) => {
+  const trackerId = Number(req.params.trackerId);
+  if (!trackerRepo.findById(trackerId)) { next(new HttpError(404, 'Tracker not found')); return; }
+  res.json(historyRepo.getStats(trackerId));
+});
+
 historyRouter.get('/:trackerId', (req, res, next) => {
   const trackerId = Number(req.params.trackerId);
   if (!trackerRepo.findById(trackerId)) { next(new HttpError(404, 'Tracker not found')); return; }

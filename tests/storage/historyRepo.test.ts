@@ -40,3 +40,43 @@ describe('historyRepo', () => {
     expect(latest?.value).toBeNull();
   });
 });
+
+describe('historyRepo.getStats', () => {
+  it('returns nulls and count 0 when no numeric values', () => {
+    const id = trackerRepo.create({ name: 'NoNums', url: 'https://a.test', selector: '.x' }).id;
+    historyRepo.insert(id, { value: 'N/A', statusCode: 200, error: null });
+    const stats = historyRepo.getStats(id);
+    expect(stats.globalMin).toBeNull();
+    expect(stats.globalMax).toBeNull();
+    expect(stats.globalAvg).toBeNull();
+    expect(stats.count).toBe(0);
+  });
+
+  it('computes min/max/avg from numeric values', () => {
+    const id = trackerRepo.create({ name: 'Nums', url: 'https://b.test', selector: '.p' }).id;
+    historyRepo.insert(id, { value: '€10.00', statusCode: 200, error: null });
+    historyRepo.insert(id, { value: '€20.00', statusCode: 200, error: null });
+    historyRepo.insert(id, { value: '€15.00', statusCode: 200, error: null });
+    const stats = historyRepo.getStats(id);
+    expect(stats.globalMin).toBe(10);
+    expect(stats.globalMax).toBe(20);
+    expect(stats.globalAvg).toBeCloseTo(15, 2);
+    expect(stats.count).toBe(3);
+  });
+
+  it('includes today values in todayMin/todayMax', () => {
+    const id = trackerRepo.create({ name: 'Today', url: 'https://c.test', selector: '.q' }).id;
+    historyRepo.insert(id, { value: '5', statusCode: 200, error: null });
+    historyRepo.insert(id, { value: '8', statusCode: 200, error: null });
+    const stats = historyRepo.getStats(id);
+    expect(stats.todayMin).toBe(5);
+    expect(stats.todayMax).toBe(8);
+  });
+
+  it('returns nulls for empty tracker', () => {
+    const id = trackerRepo.create({ name: 'Empty', url: 'https://d.test', selector: '.r' }).id;
+    const stats = historyRepo.getStats(id);
+    expect(stats.count).toBe(0);
+    expect(stats.todayMin).toBeNull();
+  });
+});

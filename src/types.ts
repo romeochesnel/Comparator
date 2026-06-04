@@ -31,3 +31,12 @@ export interface CreateTrackerDto {
   interval?: number;
   jsRender?: boolean;
 }
+
+export interface TrackerStats {
+  globalMin: number | null;
+  globalMax: number | null;
+  globalAvg: number | null;
+  todayMin: number | null;
+  todayMax: number | null;
+  count: number;
+}
