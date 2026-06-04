@@ -112,7 +112,7 @@
 <div class="container">
 
   <div id="add-form" class="hidden">
-    <h2>Nouveau tracker</h2>
+    <h2 id="form-title">Nouveau tracker</h2>
     <form id="form-add" autocomplete="off">
       <div class="form-grid">
         <div class="form-group">
@@ -143,6 +143,7 @@
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" id="btn-cancel">Annuler</button>
         <button type="submit" class="btn btn-primary" id="btn-save">Créer le tracker</button>
+        <input type="hidden" id="f-editing-id">
       </div>
     </form>
   </div>
@@ -176,6 +177,7 @@
   let trackers = [];
   let historyChart = null;
   let selectedId = null;
+  let editingId = null;
 
   // --- API ---
   async function api(method, path, body) {
@@ -243,6 +245,7 @@
           <div class="tracker-actions">
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();checkNow(${t.id})">↻ Vérifier</button>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();toggleActive(${t.id},${t.active})">${t.active ? '⏸ Pause' : '▶ Activer'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditForm(${t.id})">✎ Éditer</button>
             <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTracker(${t.id})">✕</button>
           </div>
         </div>`;
@@ -345,32 +348,65 @@
   }
 
   // --- Form ---
+  function resetForm() {
+    editingId = null;
+    document.getElementById('form-add').reset();
+    document.getElementById('f-editing-id').value = '';
+    document.getElementById('form-title').textContent = 'Nouveau tracker';
+    document.getElementById('btn-save').textContent = 'Créer le tracker';
+    document.getElementById('add-form').classList.add('hidden');
+  }
+
+  function openEditForm(id) {
+    const t = trackers.find(x => x.id === id);
+    if (!t) return;
+    editingId = id;
+    document.getElementById('f-editing-id').value = id;
+    document.getElementById('f-name').value = t.name;
+    document.getElementById('f-url').value = t.url;
+    document.getElementById('f-selector').value = t.selector;
+    document.getElementById('f-interval').value = t.interval;
+    document.getElementById('f-js-render').checked = t.jsRender;
+    document.getElementById('form-title').textContent = 'Modifier le tracker';
+    document.getElementById('btn-save').textContent = 'Enregistrer';
+    document.getElementById('add-form').classList.remove('hidden');
+    document.getElementById('add-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   document.getElementById('btn-toggle-form').addEventListener('click', () => {
-    document.getElementById('add-form').classList.toggle('hidden');
+    if (!document.getElementById('add-form').classList.contains('hidden') && editingId) {
+      resetForm();
+    } else {
+      resetForm();
+      document.getElementById('add-form').classList.toggle('hidden');
+    }
   });
 
-  document.getElementById('btn-cancel').addEventListener('click', () => {
-    document.getElementById('add-form').classList.add('hidden');
-    document.getElementById('form-add').reset();
-  });
+  document.getElementById('btn-cancel').addEventListener('click', resetForm);
 
   document.getElementById('form-add').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
-    btn.disabled = true; btn.textContent = 'Création…';
+    const isEdit = !!editingId;
+    btn.disabled = true; btn.textContent = isEdit ? 'Enregistrement…' : 'Création…';
     try {
-      await api('POST', '/trackers', {
+      const payload = {
         name:     document.getElementById('f-name').value,
         url:      document.getElementById('f-url').value,
         selector: document.getElementById('f-selector').value,
         interval: parseInt(document.getElementById('f-interval').value, 10),
         jsRender: document.getElementById('f-js-render').checked,
-      });
-      document.getElementById('add-form').classList.add('hidden');
-      document.getElementById('form-add').reset();
+      };
+      if (isEdit) {
+        await api('PATCH', `/trackers/${editingId}`, payload);
+      } else {
+        await api('POST', '/trackers', payload);
+      }
+      resetForm();
       await loadTrackers();
+      if (isEdit && selectedId === editingId) await loadHistory(editingId);
     } catch (e) { alert(e.message); }
-    finally { btn.disabled = false; btn.textContent = 'Créer le tracker'; }
+    finally { btn.disabled = false; btn.textContent = isEdit ? 'Enregistrer' : 'Créer le tracker'; }
   });
 
   // --- Card click → history ---

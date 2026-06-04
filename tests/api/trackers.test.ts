@@ -65,4 +65,24 @@ describe('PATCH /api/trackers/:id', () => {
     expect(patched.status).toBe(200);
     expect(patched.body.active).toBe(false);
   });
+
+  it('updates all editable fields', async () => {
+    const created = await request(app)
+      .post('/api/trackers')
+      .send({ name: 'Original', url: 'https://example.com', selector: '.old', interval: 60 });
+    const patched = await request(app)
+      .patch(`/api/trackers/${created.body.id}`)
+      .send({ name: 'Updated', url: 'https://new.com', selector: '.new', interval: 30, jsRender: true });
+    expect(patched.status).toBe(200);
+    expect(patched.body.name).toBe('Updated');
+    expect(patched.body.url).toBe('https://new.com');
+    expect(patched.body.selector).toBe('.new');
+    expect(patched.body.interval).toBe(30);
+    expect(patched.body.jsRender).toBe(true);
+  });
+
+  it('returns 404 for unknown id', async () => {
+    const res = await request(app).patch('/api/trackers/99999').send({ name: 'Ghost' });
+    expect(res.status).toBe(404);
+  });
 });
