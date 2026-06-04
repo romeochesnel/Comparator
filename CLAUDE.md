@@ -85,16 +85,11 @@ tests/
 
 - **TypeScript**: strict mode, `target: ES2020`, `module: commonjs`, source maps on
 - **ESLint**: `@typescript-eslint` rules on `src/` and `tests/`
-- **Jest**: ts-jest, 4 test suites, 30 tests — all must pass before committing
+- **Jest**: ts-jest, 5 test suites, 37 tests — all must pass before committing
 - **CI** (GitHub Actions on push/PR to `main`): lint → typecheck → test with coverage
 - **PostToolUse hook**: runs `npm test` automatically after every file edit
 - **Stop hook**: runs `npm run typecheck` at end of each Claude session
 
 ## Known Gaps (to address)
 
-- No rate limiting
-- No rate limiting
-- `src/db/`, `src/models/`, `src/routes/`, `src/services/` are empty placeholder dirs
-- No coverage threshold enforced in CI
 - No CD pipeline
-- CI uses Node 20, local dev uses Node 25
