@@ -4,7 +4,7 @@ import * as historyRepo from '../../storage/historyRepo';
 import { scheduleTracker, stopTracker } from '../../scheduler';
 import { checkUrl } from '../../scraper/extractor';
 import { HttpError } from '../middleware/errorHandler';
-import { CreateTrackerDto } from '../../types';
+import { createTrackerSchema, patchTrackerSchema } from '../schemas';
 
 export const trackersRouter = Router();
 
@@ -21,12 +21,12 @@ trackersRouter.get('/:id', (req, res, next) => {
 
 trackersRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const dto = req.body as CreateTrackerDto;
-    if (!dto.name || !dto.url || !dto.selector) {
-      res.status(400).json({ error: 'name, url and selector are required' });
+    const parsed = createTrackerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues });
       return;
     }
-    const tracker = trackerRepo.create(dto);
+    const tracker = trackerRepo.create(parsed.data);
     const result = await checkUrl(tracker.url, tracker.selector, tracker.jsRender);
     historyRepo.insert(tracker.id, result);
     scheduleTracker(tracker);
@@ -36,8 +36,13 @@ trackersRouter.post('/', async (req: Request, res: Response, next: NextFunction)
 
 trackersRouter.patch('/:id', (req, res, next) => {
   try {
+    const parsed = patchTrackerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues });
+      return;
+    }
     const id = Number(req.params.id);
-    const tracker = trackerRepo.update(id, req.body);
+    const tracker = trackerRepo.update(id, parsed.data);
     if (!tracker) { next(new HttpError(404, 'Tracker not found')); return; }
     tracker.active ? scheduleTracker(tracker) : stopTracker(id);
     res.json(tracker);

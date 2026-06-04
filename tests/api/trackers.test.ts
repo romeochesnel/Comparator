@@ -29,6 +29,13 @@ describe('POST /api/trackers', () => {
     const res = await request(app).post('/api/trackers').send({ name: 'Only name' });
     expect(res.status).toBe(400);
   });
+
+  it('returns 400 when url is not a valid URL', async () => {
+    const res = await request(app)
+      .post('/api/trackers')
+      .send({ name: 'Bad URL', url: 'not-a-url', selector: '.price' });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('GET /api/trackers', () => {
@@ -84,5 +91,23 @@ describe('PATCH /api/trackers/:id', () => {
   it('returns 404 for unknown id', async () => {
     const res = await request(app).patch('/api/trackers/99999').send({ name: 'Ghost' });
     expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when patch body is empty', async () => {
+    const created = await request(app)
+      .post('/api/trackers')
+      .send({ name: 'For empty patch', url: 'https://example.com', selector: 'h1' });
+    const res = await request(app).patch(`/api/trackers/${created.body.id}`).send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when patch url is not valid', async () => {
+    const created = await request(app)
+      .post('/api/trackers')
+      .send({ name: 'For bad url patch', url: 'https://example.com', selector: 'h1' });
+    const res = await request(app)
+      .patch(`/api/trackers/${created.body.id}`)
+      .send({ url: 'not-a-url' });
+    expect(res.status).toBe(400);
   });
 });
