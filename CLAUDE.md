@@ -75,6 +75,7 @@ tests/
 
 - **DB path**: `data.db` at project root by default; override with `DB_PATH` env var (tests use `:memory:`)
 - **Port**: `3000` by default; override with `PORT` env var
+- **Auth**: if `API_KEY` env var is set, all `/api` routes require `Authorization: Bearer <key>`; if not set, the API is open (dev mode). The frontend stores the key in `localStorage` and prompts for it on 401.
 - **Scheduler**: starts automatically with the server, loads all active trackers from DB
 - **Interval → cron**: `< 60 min` → `*/N * * * *`; `≥ 60 min` → `0 */H * * *`
 - **jsRender flag**: when true, fetches via Playwright (headless Chromium); when false, uses axios
@@ -91,8 +92,7 @@ tests/
 
 ## Known Gaps (to address)
 
-- No input validation library (zod/joi) — validation is manual in route handlers
-- No authentication on the API
+- No rate limiting
 - No rate limiting
 - `src/db/`, `src/models/`, `src/routes/`, `src/services/` are empty placeholder dirs
 - No coverage threshold enforced in CI

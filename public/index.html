@@ -332,6 +332,25 @@
     #empty-state strong { font-size: .95rem; color: var(--text); display: block; margin-bottom: 6px; }
     #empty-state p { font-size: .83rem; }
 
+    /* ── Auth overlay ── */
+    #auth-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      width: min(360px, calc(100vw - 32px));
+      box-shadow: var(--shadow-h);
+    }
+    .auth-card h2 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+    .auth-card p  { font-size: .78rem; color: var(--text-muted); margin-bottom: 18px; }
+    #auth-error   { font-size: .75rem; color: var(--danger); min-height: 1em; margin-top: 6px; }
+
     /* ── Utils ── */
     .loading { opacity: .6; pointer-events: none; }
     .hidden  { display: none !important; }
@@ -379,6 +398,23 @@
     </button>
   </div>
 </header>
+
+<div id="auth-overlay" class="hidden">
+  <div class="auth-card">
+    <h2>Clé d'accès requise</h2>
+    <p>Entrez la clé API configurée sur le serveur (<code>API_KEY</code>).</p>
+    <form id="auth-form" autocomplete="off">
+      <div class="form-group">
+        <label for="auth-input">Clé API</label>
+        <input id="auth-input" type="password" placeholder="••••••••••••" autocomplete="current-password">
+      </div>
+      <p id="auth-error"></p>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Connexion</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="container">
 
@@ -499,6 +535,31 @@
     syncThemeIcon();
   });
 
+  /* ── Auth ── */
+  const AUTH_KEY = 'apiKey';
+  function getApiKey() { return localStorage.getItem(AUTH_KEY) || ''; }
+  function setApiKey(k) { localStorage.setItem(AUTH_KEY, k); }
+  function clearApiKey() { localStorage.removeItem(AUTH_KEY); }
+
+  function showAuthPrompt(onSuccess) {
+    const overlay = document.getElementById('auth-overlay');
+    const input   = document.getElementById('auth-input');
+    const errEl   = document.getElementById('auth-error');
+    overlay.classList.remove('hidden');
+    input.value = '';
+    errEl.textContent = '';
+    input.focus();
+    document.getElementById('auth-form').onsubmit = async e => {
+      e.preventDefault();
+      const key = input.value.trim();
+      if (!key) return;
+      setApiKey(key);
+      const ok = await api('GET', '/trackers').then(() => true).catch(() => false);
+      if (ok) { overlay.classList.add('hidden'); onSuccess(); }
+      else { clearApiKey(); errEl.textContent = 'Clé incorrecte, réessayez.'; input.focus(); }
+    };
+  }
+
   /* ── State ── */
   let trackers = [];
   let historyChart = null;
@@ -507,15 +568,37 @@
 
   /* ── API ── */
   async function api(method, path, body) {
+    const headers = {};
+    if (body) headers['Content-Type'] = 'application/json';
+    const key = getApiKey();
+    if (key) headers['Authorization'] = 'Bearer ' + key;
+
     const res = await fetch('/api' + path, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : {},
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
+    if (res.status === 401) {
+      clearApiKey();
+      throw new Error('__401__');
+    }
     if (res.status === 204) return null;
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur serveur');
     return data;
+  }
+
+  async function apiWithAuth(method, path, body) {
+    try {
+      return await api(method, path, body);
+    } catch (e) {
+      if (e.message === '__401__') {
+        return new Promise(resolve => showAuthPrompt(async () => {
+          resolve(await api(method, path, body));
+        }));
+      }
+      throw e;
+    }
   }
 
   /* ── Helpers ── */
@@ -649,7 +732,7 @@
 
   /* ── Actions ── */
   async function loadTrackers() {
-    trackers = await api('GET', '/trackers');
+    trackers = await apiWithAuth('GET', '/trackers');
     render();
   }
 
@@ -657,7 +740,7 @@
     const card = document.querySelector(`[data-id="${id}"]`);
     card?.classList.add('loading');
     try {
-      await api('POST', `/trackers/${id}/check`);
+      await apiWithAuth('POST', `/trackers/${id}/check`);
       await loadTrackers();
       if (selectedId === id) await loadHistory(id);
     } catch (e) { alert(e.message); }
@@ -665,13 +748,13 @@
   }
 
   async function toggleActive(id, current) {
-    await api('PATCH', `/trackers/${id}`, { active: !current });
+    await apiWithAuth('PATCH', `/trackers/${id}`, { active: !current });
     await loadTrackers();
   }
 
   async function deleteTracker(id) {
     if (!confirm('Supprimer ce tracker et tout son historique ?')) return;
-    await api('DELETE', `/trackers/${id}`);
+    await apiWithAuth('DELETE', `/trackers/${id}`);
     if (selectedId === id) closeHistory();
     await loadTrackers();
   }
@@ -682,11 +765,11 @@
     render();
 
     const [tracker, entries] = await Promise.all([
-      api('GET', `/trackers/${id}`),
-      api('GET', `/history/${id}?limit=50`),
+      apiWithAuth('GET', `/trackers/${id}`),
+      apiWithAuth('GET', `/history/${id}?limit=50`),
     ]);
 
-    const stats = await api('GET', `/history/${id}/stats`).catch(() => null);
+    const stats = await apiWithAuth('GET', `/history/${id}/stats`).catch(() => null);
 
     document.getElementById('history-title').textContent = tracker.name;
     document.getElementById('history-panel').classList.remove('hidden');
@@ -805,9 +888,9 @@
         jsRender: document.getElementById('f-js-render').checked,
       };
       if (isEdit) {
-        await api('PATCH', `/trackers/${editingId}`, payload);
+        await apiWithAuth('PATCH', `/trackers/${editingId}`, payload);
       } else {
-        await api('POST', '/trackers', payload);
+        await apiWithAuth('POST', '/trackers', payload);
       }
       resetForm();
       await loadTrackers();
