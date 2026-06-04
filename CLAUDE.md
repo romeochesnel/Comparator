@@ -90,6 +90,43 @@ tests/
 - **PostToolUse hook**: runs `npm test` automatically after every file edit
 - **Stop hook**: runs `npm run typecheck` at end of each Claude session
 
-## Known Gaps (to address)
+## Deployment (local + Cloudflare Tunnel)
 
-- No CD pipeline
+The app runs on the local Mac and is exposed publicly via a Cloudflare quick tunnel.
+
+### First-time setup (run once)
+
+```bash
+# 1. Installer les outils
+brew install cloudflared
+npm install -g pm2
+
+# 2. Copier et remplir les variables d'environnement
+cp .env.example .env
+# éditer .env : définir API_KEY
+
+# 3. Build et démarrage
+npm ci --omit=dev
+npm run build
+pm2 start ecosystem.config.js
+
+# 4. Rendre pm2 persistant au démarrage macOS
+pm2 save
+pm2 startup  # exécuter la commande générée
+```
+
+### Trouver l'URL du tunnel
+
+```bash
+pm2 logs tunnel --lines 30 | grep trycloudflare
+```
+
+L'URL change à chaque redémarrage du tunnel (format `https://xyz-abc.trycloudflare.com`).
+
+### Mettre à jour l'app après un push
+
+```bash
+./deploy.sh
+```
+
+Pull, build, redémarre `comparator` via pm2, affiche la nouvelle URL du tunnel.
