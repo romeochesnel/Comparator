@@ -14,7 +14,7 @@ echo "→ Suppression des devDependencies..."
 npm prune --omit=dev
 
 echo "→ Redémarrage de l'application..."
-pm2 restart comparator
+pm2 restart comparator || pm2 start ecosystem.config.js
 
 echo "→ Déployé. URL du tunnel :"
 pm2 logs tunnel --nostream --lines 30 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | tail -1
