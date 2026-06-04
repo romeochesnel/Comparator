@@ -5,10 +5,13 @@ echo "→ Pull des dernières modifications..."
 git pull origin main
 
 echo "→ Installation des dépendances..."
-npm ci --omit=dev
+npm ci
 
 echo "→ Build TypeScript..."
 npm run build
+
+echo "→ Suppression des devDependencies..."
+npm prune --omit=dev
 
 echo "→ Redémarrage de l'application..."
 pm2 restart comparator

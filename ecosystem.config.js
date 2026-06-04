@@ -5,6 +5,7 @@ module.exports = {
       script: 'dist/server.js',
       interpreter: 'node',
       restart_delay: 3000,
+      env_file: '.env',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
