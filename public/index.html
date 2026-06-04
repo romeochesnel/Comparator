@@ -681,11 +681,12 @@
     selectedId = id;
     render();
 
-    const [tracker, entries, stats] = await Promise.all([
+    const [tracker, entries] = await Promise.all([
       api('GET', `/trackers/${id}`),
       api('GET', `/history/${id}?limit=50`),
-      api('GET', `/history/${id}/stats`),
     ]);
+
+    const stats = await api('GET', `/history/${id}/stats`).catch(() => null);
 
     document.getElementById('history-title').textContent = tracker.name;
     document.getElementById('history-panel').classList.remove('hidden');
