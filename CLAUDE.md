@@ -125,8 +125,21 @@ L'URL change à chaque redémarrage du tunnel (format `https://xyz-abc.trycloudf
 
 ### Mettre à jour l'app après un push
 
+Le CD est automatique : chaque push sur `main` déclenche CI → puis CD via le self-hosted runner.
+
+En manuel si besoin :
 ```bash
 ./deploy.sh
 ```
 
-Pull, build, redémarre `comparator` via pm2, affiche la nouvelle URL du tunnel.
+### GitHub Actions self-hosted runner
+
+Le runner tourne dans `~/actions-runner/` et doit être actif pour que le CD fonctionne.
+
+```bash
+# Démarrer manuellement
+cd ~/actions-runner && ./run.sh
+
+# Rendre persistant au démarrage (pas encore fait)
+cd ~/actions-runner && sudo ./svc.sh install && sudo ./svc.sh start
+```
